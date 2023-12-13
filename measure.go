@@ -86,12 +86,13 @@ func (m *MeasureServer) collectHandler(ctx *gin.Context) {
 
 	switch {
 	case parsedQueryParameters.Device != "":
-		status, err := m.Cache.Get(parsedQueryParameters.Device)
+		s, err := m.Cache.Get(parsedQueryParameters.Device)
 		if err != nil {
-			ctx.JSON(http.StatusNotFound, gin.H{})
+			ctx.AbortWithError(http.StatusNotFound, err)
+			return
 		}
 		ctx.JSON(http.StatusOK, gin.H{
-			"status": status.(json.RawMessage),
+			"status": s.(json.RawMessage),
 		})
 	default:
 		status := map[string]json.RawMessage{}
