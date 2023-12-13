@@ -3,6 +3,7 @@ module github.com/finfinack/measure
 go 1.21.4
 
 require (
+	github.com/ReneKroon/ttlcache v1.7.0
 	github.com/gin-gonic/gin v1.9.1
 	github.com/golang/glog v1.2.0
 	github.com/gorilla/websocket v1.5.1

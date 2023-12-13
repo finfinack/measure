@@ -10,18 +10,21 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/finfinack/measure/data"
 
+	"github.com/ReneKroon/ttlcache"
 	"github.com/gin-gonic/gin"
 	"github.com/golang/glog"
 	"github.com/gorilla/websocket"
 )
 
 var (
-	port    = flag.Int("port", 8080, "Listening port for webserver.")
-	tlsCert = flag.String("tlsCert", "", "Path to TLS Certificate. If this and -tlsKey is specified, service runs as TLS server.")
-	tlsKey  = flag.String("tlsKey", "", "Path to TLS Key. If this and -tlsCert is specified, service runs as TLS server.")
+	port     = flag.Int("port", 8080, "Listening port for webserver.")
+	tlsCert  = flag.String("tlsCert", "", "Path to TLS Certificate. If this and -tlsKey is specified, service runs as TLS server.")
+	tlsKey   = flag.String("tlsKey", "", "Path to TLS Key. If this and -tlsCert is specified, service runs as TLS server.")
+	cacheTTL = flag.Duration("cacheTTL", 3*time.Hour, "Duration for which to keep the entries in cache.")
 )
 
 const (
@@ -31,11 +34,10 @@ const (
 
 var (
 	upgrader = websocket.Upgrader{} // use default option
-
-	status = map[string]json.RawMessage{}
 )
 
 type MeasureServer struct {
+	Cache  *ttlcache.Cache
 	Server *http.Server
 }
 
@@ -64,7 +66,7 @@ func (m *MeasureServer) wsHandler(ctx *gin.Context) {
 
 		switch msg.Method {
 		case data.MethodNotifyFullStatus:
-			status[msg.Src] = json.RawMessage(message)
+			m.Cache.Set(msg.Src, json.RawMessage(message))
 		default:
 			continue
 		}
@@ -84,14 +86,17 @@ func (m *MeasureServer) collectHandler(ctx *gin.Context) {
 
 	switch {
 	case parsedQueryParameters.Device != "":
-		d, ok := status[parsedQueryParameters.Device]
-		if !ok {
+		if !m.Cache.Has(parsedQueryParameters.Device) {
 			ctx.JSON(http.StatusNotFound, gin.H{})
 		}
 		ctx.JSON(http.StatusOK, gin.H{
-			"status": d,
+			"status": m.Cache.Get(parsedQueryParameters.Device),
 		})
 	default:
+		status := map[string]json.RawMessage{}
+		for k, v := range m.Cache {
+			status[k] = v
+		}
 		ctx.JSON(http.StatusOK, gin.H{
 			"devices": status,
 		})
@@ -107,11 +112,15 @@ func main() {
 	// Parse flags globally.
 	flag.Parse()
 
+	cache := ttlcache.NewCache()
+	cache.SetTTL(time.Duration(*cacheTTL))
+
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.Default()
 	router.SetFuncMap(template.FuncMap{})
 
 	srv := MeasureServer{
+		Cache: cache,
 		Server: &http.Server{
 			Addr:    fmt.Sprintf(":%d", *port),
 			Handler: router, // use `http.DefaultServeMux`
