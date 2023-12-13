@@ -14,10 +14,10 @@ import (
 
 	"github.com/finfinack/measure/data"
 
-	"github.com/ReneKroon/ttlcache"
 	"github.com/gin-gonic/gin"
 	"github.com/golang/glog"
 	"github.com/gorilla/websocket"
+	ttlcache "github.com/jellydator/ttlcache/v2"
 )
 
 var (
@@ -86,16 +86,17 @@ func (m *MeasureServer) collectHandler(ctx *gin.Context) {
 
 	switch {
 	case parsedQueryParameters.Device != "":
-		if !m.Cache.Has(parsedQueryParameters.Device) {
+		status, err := m.Cache.Get(parsedQueryParameters.Device)
+		if err != nil {
 			ctx.JSON(http.StatusNotFound, gin.H{})
 		}
 		ctx.JSON(http.StatusOK, gin.H{
-			"status": m.Cache.Get(parsedQueryParameters.Device),
+			"status": status.(json.RawMessage),
 		})
 	default:
 		status := map[string]json.RawMessage{}
-		for k, v := range m.Cache {
-			status[k] = v
+		for k, v := range m.Cache.GetItems() {
+			status[k] = v.(json.RawMessage)
 		}
 		ctx.JSON(http.StatusOK, gin.H{
 			"devices": status,

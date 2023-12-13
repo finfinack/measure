@@ -3,10 +3,10 @@ module github.com/finfinack/measure
 go 1.21.4
 
 require (
-	github.com/ReneKroon/ttlcache v1.7.0
 	github.com/gin-gonic/gin v1.9.1
 	github.com/golang/glog v1.2.0
 	github.com/gorilla/websocket v1.5.1
+	github.com/jellydator/ttlcache/v2 v2.11.1
 )
 
 require (
@@ -30,6 +30,7 @@ require (
 	golang.org/x/arch v0.3.0 // indirect
 	golang.org/x/crypto v0.14.0 // indirect
 	golang.org/x/net v0.17.0 // indirect
+	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c // indirect
 	golang.org/x/sys v0.13.0 // indirect
 	golang.org/x/text v0.13.0 // indirect
 	google.golang.org/protobuf v1.30.0 // indirect
