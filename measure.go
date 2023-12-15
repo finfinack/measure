@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"html/template"
@@ -91,6 +92,9 @@ func (m *MeasureServer) reportHandler(ctx *gin.Context) {
 		Device:      parsedQueryParameters.Device,
 		Temperature: parsedQueryParameters.Temperature,
 		Humidity:    parsedQueryParameters.Humidity,
+	}
+	if r.Device == "" || (r.Temperature == "" && r.Humidity == "") {
+		ctx.AbortWithError(http.StatusBadRequest, errors.New("not enough parameters set"))
 	}
 	msg, err := json.Marshal(r)
 	if err != nil {
