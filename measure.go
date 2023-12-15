@@ -95,6 +95,7 @@ func (m *MeasureServer) reportHandler(ctx *gin.Context) {
 	}
 	if r.Device == "" || (r.Temperature == "" && r.Humidity == "") {
 		ctx.AbortWithError(http.StatusBadRequest, errors.New("not enough parameters set"))
+		return
 	}
 	msg, err := json.Marshal(r)
 	if err != nil {
