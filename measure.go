@@ -30,6 +30,7 @@ var (
 const (
 	wsEndpoint      = "/measure/v1/ws"
 	collectEndpoint = "/measure/v1/collect"
+	reportEndpoint  = "/measure/v1/report"
 )
 
 var (
@@ -71,6 +72,34 @@ func (m *MeasureServer) wsHandler(ctx *gin.Context) {
 			continue
 		}
 	}
+}
+
+func (m *MeasureServer) reportHandler(ctx *gin.Context) {
+	type queryParameters struct {
+		Device      string `form:"dev"`
+		Temperature string `form:"temp"`
+		Humidity    string `form:"hum"`
+	}
+
+	var parsedQueryParameters queryParameters
+	if err := ctx.ShouldBind(&parsedQueryParameters); err != nil {
+		ctx.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+
+	r := data.ReportStatus{
+		Device:      parsedQueryParameters.Device,
+		Temperature: parsedQueryParameters.Temperature,
+		Humidity:    parsedQueryParameters.Humidity,
+	}
+	msg, err := json.Marshal(r)
+	if err != nil {
+		ctx.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+	m.Cache.Set(r.Device, json.RawMessage(msg))
+
+	ctx.JSON(http.StatusOK, gin.H{})
 }
 
 func (m *MeasureServer) collectHandler(ctx *gin.Context) {
@@ -130,6 +159,7 @@ func main() {
 	}
 	router.GET(wsEndpoint, srv.wsHandler)
 	router.GET(collectEndpoint, srv.collectHandler)
+	router.GET(reportEndpoint, srv.reportHandler)
 
 	if *tlsCert != "" && *tlsKey != "" {
 		router.RunTLS(fmt.Sprintf(":%d", *port), *tlsCert, *tlsKey)
