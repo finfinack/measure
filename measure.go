@@ -77,7 +77,7 @@ func (m *MeasureServer) wsHandler(ctx *gin.Context) {
 
 func (m *MeasureServer) reportHandler(ctx *gin.Context) {
 	type queryParameters struct {
-		Device      string `form:"dev"`
+		ID          string `form:"id"`
 		Temperature string `form:"temp"`
 		Humidity    string `form:"hum"`
 	}
@@ -89,7 +89,7 @@ func (m *MeasureServer) reportHandler(ctx *gin.Context) {
 	}
 
 	r := data.ReportStatus{
-		Device:      parsedQueryParameters.Device,
+		Device:      parsedQueryParameters.ID,
 		Temperature: parsedQueryParameters.Temperature,
 		Humidity:    parsedQueryParameters.Humidity,
 	}
