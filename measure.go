@@ -1,16 +1,12 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
 	"html/template"
 	"net/http"
-	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
 	"github.com/finfinack/measure/data"
@@ -140,7 +136,6 @@ func (m *MeasureServer) collectHandler(ctx *gin.Context) {
 }
 
 func main() {
-	ctx := context.Background()
 	// Set defaults for glog flags. Can be overridden via cmdline.
 	flag.Set("logtostderr", "true")
 	flag.Set("stderrthreshold", "WARNING")
@@ -171,15 +166,4 @@ func main() {
 	} else {
 		router.Run(fmt.Sprintf(":%d", *port))
 	}
-
-	// Wait for abort signal (e.g. CTRL-C pressed).
-	c := make(chan os.Signal)
-	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
-	go func() {
-		<-c
-		srv.Server.Shutdown(ctx)
-		glog.Flush()
-
-		os.Exit(1)
-	}()
 }
