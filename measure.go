@@ -11,8 +11,8 @@ import (
 
 	"github.com/finfinack/measure/data"
 
+	"github.com/finfinack/logger/logging"
 	"github.com/gin-gonic/gin"
-	"github.com/golang/glog"
 	"github.com/gorilla/websocket"
 	ttlcache "github.com/jellydator/ttlcache/v2"
 )
@@ -22,6 +22,7 @@ var (
 	tlsCert  = flag.String("tlsCert", "", "Path to TLS Certificate. If this and -tlsKey is specified, service runs as TLS server.")
 	tlsKey   = flag.String("tlsKey", "", "Path to TLS Key. If this and -tlsCert is specified, service runs as TLS server.")
 	cacheTTL = flag.Duration("cacheTTL", 3*time.Hour, "Duration for which to keep the entries in cache.")
+	logLevel = flag.String("loglevel", "INFO", "Log level to use.")
 )
 
 const (
@@ -37,13 +38,14 @@ var (
 type MeasureServer struct {
 	Cache  *ttlcache.Cache
 	Server *http.Server
+	Logger *logging.Logger
 }
 
 func (m *MeasureServer) wsHandler(ctx *gin.Context) {
 	w, r := ctx.Writer, ctx.Request
 	c, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		glog.Warningf("upgrade: %s", err)
+		m.Logger.Warnf("upgrade: %s", err)
 		return
 	}
 	defer c.Close()
@@ -51,14 +53,14 @@ func (m *MeasureServer) wsHandler(ctx *gin.Context) {
 	for {
 		_, message, err := c.ReadMessage()
 		if err != nil {
-			glog.Warningf("read: %s", err)
+			m.Logger.Warnf("read: %s", err)
 			break
 		}
 
-		glog.V(4).Infof("recv: %s", message)
+		m.Logger.Debugf("recv: %s", message)
 		var msg data.WSMessage
 		if err := json.Unmarshal(message, &msg); err != nil {
-			glog.Warningf("unmarshal failed: %s", err)
+			m.Logger.Warnf("unmarshal failed: %s", err)
 			break
 		}
 
@@ -136,12 +138,16 @@ func (m *MeasureServer) collectHandler(ctx *gin.Context) {
 }
 
 func main() {
-	// Set defaults for glog flags. Can be overridden via cmdline.
-	flag.Set("logtostderr", "true")
-	flag.Set("stderrthreshold", "WARNING")
-	flag.Set("v", "1")
-	// Parse flags globally.
 	flag.Parse()
+
+	// Set up logging
+	log := logging.NewLogger("MAIN")
+	lvl, err := logging.LevelToValue(*logLevel)
+	if err != nil {
+		log.Fatalf("Unable to map %q to a log level", *logLevel)
+	}
+	logging.SetMinLogLevel(lvl)
+	defer log.Shutdown()
 
 	cache := ttlcache.NewCache()
 	cache.SetTTL(time.Duration(*cacheTTL))
@@ -156,6 +162,7 @@ func main() {
 			Addr:    fmt.Sprintf(":%d", *port),
 			Handler: router, // use `http.DefaultServeMux`
 		},
+		Logger: logging.NewLogger("SERV"),
 	}
 	router.GET(wsEndpoint, srv.wsHandler)
 	router.GET(collectEndpoint, srv.collectHandler)
